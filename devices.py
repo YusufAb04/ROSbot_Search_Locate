@@ -1,7 +1,7 @@
 import math
-from controller import Robot
+from controller import Supervisor
 
-robot = Robot()
+robot = Supervisor()
 timestep = int(robot.getBasicTimeStep())
 
 # =====================================================

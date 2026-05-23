@@ -1,9 +1,7 @@
-import math
 from devices import (
     robot, timestep, imu,
-    fl_enc, fr_enc, rl_enc, rr_enc,
     fl_range, fr_range,
-    width, WHEEL_RADIUS, OBSTACLE_THRESHOLD,
+    width, OBSTACLE_THRESHOLD,
     detect_target
 )
 from goal_reached   import check_transition, run_goal_reached
@@ -12,15 +10,10 @@ from nav_target     import run_nav_target
 from explore        import run_explore
 
 # =====================================================
-# ODOMETRY STATE
+# SUPERVISOR (exact world coordinates)
 # =====================================================
 
-robot_x      = 0.0
-robot_y      = 0.0
-prev_fl_enc  = 0.0
-prev_fr_enc  = 0.0
-prev_rl_enc  = 0.0
-prev_rr_enc  = 0.0
+robot_node = robot.getSelf()
 
 # =====================================================
 # STATE MACHINE VARIABLES
@@ -39,27 +32,13 @@ turn_direction = None
 while robot.step(timestep) != -1:
 
     # =========================
-    # ODOMETRY UPDATE
+    # POSITION + HEADING
     # =========================
 
-    cur_fl_enc = fl_enc.getValue()
-    cur_fr_enc = fr_enc.getValue()
-    cur_rl_enc = rl_enc.getValue()
-    cur_rr_enc = rr_enc.getValue()
-
-    left_dist  = ((cur_fl_enc - prev_fl_enc) + (cur_rl_enc - prev_rl_enc)) / 2 * WHEEL_RADIUS
-    right_dist = ((cur_fr_enc - prev_fr_enc) + (cur_rr_enc - prev_rr_enc)) / 2 * WHEEL_RADIUS
-    dist       = (left_dist + right_dist) / 2
-
+    pos     = robot_node.getField('translation').getSFVec3f()
+    robot_x = pos[0]
+    robot_y = pos[1]
     heading = imu.getRollPitchYaw()[2]
-
-    robot_x += dist * math.cos(heading)
-    robot_y += dist * math.sin(heading)
-
-    prev_fl_enc = cur_fl_enc
-    prev_fr_enc = cur_fr_enc
-    prev_rl_enc = cur_rl_enc
-    prev_rr_enc = cur_rr_enc
 
     # =========================
     # SENSOR READINGS
