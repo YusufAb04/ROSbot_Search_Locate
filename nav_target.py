@@ -8,4 +8,4 @@ def run_nav_target(target_x, center):
     elif target_x > center + 50:
         turn_right()
     else:
-        forward(5.0)
+        forward(10.0)

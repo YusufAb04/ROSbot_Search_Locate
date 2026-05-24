@@ -1,6 +1,6 @@
 import math
 from devices import (
-    fl, fr, rl, rr, stop,
+    camera, fl, fr, rl, rr, stop,
     range_finder, width, height,
     GOAL_DISTANCE, GOAL_RED_THRESHOLD,
     CAMERA_X_OFFSET, BOX_HALF_SIZE,
@@ -14,22 +14,35 @@ def check_transition(target_detected, red_pixel_count, fl_val, fr_val,
             min(fl_val, fr_val) < GOAL_DISTANCE and
             abs(target_x - center) < 50):
 
-        # Sample depth at the red object's horizontal position, middle row.
-        # The depth camera sits 0.027m behind the robot centre, so subtract
-        # that offset to get distance from robot centre to the box surface.
-        depth_image = range_finder.getRangeImage()
-        pixel_idx   = (height // 2) * width + int(target_x)
-        depth       = depth_image[pixel_idx]
+        # True bearing to the target — heading plus the horizontal angle offset
+        # from the camera centre to the red pixel centroid.
+        fov_h = camera.getFov()
+        angle_to_target = (center - target_x) / (width / 2) * (fov_h / 2)
+        target_bearing = heading + angle_to_target
 
-        if math.isfinite(depth) and depth > 0:
-            distance_to_centre = depth - CAMERA_X_OFFSET + BOX_HALF_SIZE
+        # Scan the full column at target_x for the minimum depth value.
+        # At close range the box appears near the bottom of the image, so
+        # sampling only the middle row reads the background wall instead.
+        depth_image = range_finder.getRangeImage()
+        tx = int(target_x)
+        min_depth = float('inf')
+        for row in range(height):
+            d = depth_image[row * width + tx]
+            if math.isfinite(d) and d > 0:
+                min_depth = min(min_depth, d)
+
+        prox_dist = min(fl_val, fr_val)
+
+        # Use depth camera only when its reading is consistent with the
+        # proximity sensor; otherwise the depth is reading background.
+        if min_depth < prox_dist + SENSOR_X_OFFSET + 0.20:
+            distance_to_centre = min_depth - CAMERA_X_OFFSET + BOX_HALF_SIZE
         else:
-            # Fallback to proximity sensor if depth is invalid
-            distance_to_centre = min(fl_val, fr_val) + SENSOR_X_OFFSET + BOX_HALF_SIZE
+            distance_to_centre = prox_dist + SENSOR_X_OFFSET + BOX_HALF_SIZE
 
         coords = (
-            round(robot_x + distance_to_centre * math.cos(heading), 3),
-            round(robot_y + distance_to_centre * math.sin(heading), 3)
+            round(robot_x + distance_to_centre * math.cos(target_bearing), 3),
+            round(robot_y + distance_to_centre * math.sin(target_bearing), 3)
         )
         stop()
         print("=" * 50)

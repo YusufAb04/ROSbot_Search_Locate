@@ -68,18 +68,48 @@ range_finder = robot.getDevice('camera depth')
 range_finder.enable(timestep)
 
 # =====================================================
+# LIDAR
+# =====================================================
+
+lidar = robot.getDevice('laser')
+lidar.enable(timestep)
+
+# =====================================================
 # CONSTANTS
 # =====================================================
 
 WHEEL_RADIUS       = 0.043   # metres
 TRACK_WIDTH        = 0.220   # metres
 MAX_SPEED          = 5.0
-OBSTACLE_THRESHOLD = 0.09    # metres — PROXI trigger distance
+OBSTACLE_THRESHOLD = 0.35    # metres — LIDAR trigger distance
 GOAL_DISTANCE      = 0.10    # metres — proximity threshold for goal
 SENSOR_X_OFFSET    = 0.1     # metres — sensors sit 0.1m ahead of robot centre
 CAMERA_X_OFFSET    = 0.027   # metres — depth camera sits 0.027m behind robot centre
 BOX_HALF_SIZE      = 0.085   # metres — half of 0.17m target box
 GOAL_RED_THRESHOLD = (width // 10) * (height // 10) // 5  # 20% of sampled pixels
+
+# =====================================================
+# LIDAR DISTANCES
+# =====================================================
+
+def get_lidar_distances():
+    range_image = lidar.getRangeImage()
+    n = len(range_image)
+    arc = n // 12  # 30 degrees of points
+
+    def sector_min(center, half_width):
+        vals = []
+        for i in range(center - half_width, center + half_width):
+            v = range_image[i % n]
+            if not math.isfinite(v):
+                continue
+            vals.append(v if v > 0 else 0.01)  # 0 = below min range, treat as very close
+        return min(vals) if vals else float('inf')
+
+    front = sector_min(n // 2,     arc)  # forward
+    left  = sector_min(n // 4,     arc)  # left
+    right = sector_min(3 * n // 4, arc)  # right
+    return front, left, right
 
 # =====================================================
 # MOVEMENT FUNCTIONS
